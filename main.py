@@ -1,11 +1,23 @@
+import boto3
 from flask import Flask, request, jsonify
 from collections import defaultdict
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token
 
-
+# Initialise Flask app & configure JWT
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'zenskar'  # Change this to a secure secret key.
 jwt = JWTManager(app)
+
+# Initialize a Boto3 session
+session = boto3.Session(
+    aws_access_key_id='AKIA2T3BZWXVWVN3LGGH',
+    aws_secret_access_key='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',
+    region_name='"ap-south-1'
+)
+
+# Initialize a DynamoDB client & table
+dynamodb = session.client('dynamodb')
+table_name = 'Usage_events'
 
 # Dummy user database for authentication
 users = {
@@ -48,6 +60,16 @@ def record_usage():
 
     # Update the usage data for the customer in the corresponding month.
     monthly_usage[customer_id][f"{current_year}-{current_month:02}"] += bytes_sent
+
+    # Store the usage data in DynamoDB
+    dynamodb.put_item(
+        TableName=table_name,
+        Item={
+            'CustomerID': {'S': customer_id},
+            'Timestamp-EventID': {'S': f"{current_year}-{current_month:02}"},
+            'BytesSent': {'N': str(bytes_sent)}
+        }
+    )
 
     print(f"Customer {customer_id}: Total bytes sent = {bytes_sent} bytes")
     return jsonify({"message": "Usage recorded"}), 201
