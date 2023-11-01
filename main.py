@@ -1,18 +1,19 @@
 import boto3
+import json
 from flask import Flask, request, jsonify
-from collections import defaultdict
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token
+import logging
 
-# Initialise Flask app & configure JWT
+# Initialize Flask app & configure JWT
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'zenskar'  # Change this to a secure secret key.
 jwt = JWTManager(app)
 
 # Initialize a Boto3 session
 session = boto3.Session(
-    aws_access_key_id='AKIA2T3BZWXVWVN3LGGH',
-    aws_secret_access_key='5Sx3ca9edCx0CKElJBdFxG97qWaq9hN+lTeTFe3X',
-    region_name='"ap-south-1'
+    aws_access_key_id='YOUR_ACCESS_KEY',
+    aws_secret_access_key='YOUR_SECRET_KEY',
+    region_name='ap-south-1'
 )
 
 # Initialize a DynamoDB client & table
@@ -25,66 +26,86 @@ users = {
     "user2": "password2"
 }
 
-# In-memory storage for demo purpose. Ideally, this should be a DB instance initiation
-monthly_usage = defaultdict(lambda: defaultdict(int))
 
-# JWT Authentication
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
+# Lambda handler
+def lambda_handler(event, context):
+    # Set up logging
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
 
-    if username in users and users[username] == password:
-        access_token = create_access_token(identity=username)
-        return jsonify(access_token=access_token), 200
-    else:
-        return jsonify({"error": "Invalid credentials"}), 401
+    try:
+        if event['httpMethod'] == 'POST':
+            data = event['body']
+            data = json.loads(data)
 
-# Routing requests to /usage
-@app.route('/usage', methods=['POST'])
-@jwt_required()
-def record_usage():
-    data = request.get_json()
+            if 'customer' not in data or 'bytes' not in data:
+                return {
+                    "statusCode": 400,
+                    "body": json.dumps({"error": "Invalid data format"})
+                }
 
-    # Input validation of the customer & bytes fields from the JSON object
-    if 'customer' not in data or 'bytes' not in data:
-        return jsonify({"error": "Invalid data format"}), 400
+            customer_id = data['customer']
+            bytes_sent = data['bytes']
 
-    customer_id = data['customer']
-    bytes_sent = data['bytes']
+            # Get the current month and year for grouping.
+            current_month = data.get('month', 1)
+            current_year = data.get('year', 2023)
 
-    # Get the current month and year for grouping.
-    current_month = data.get('month', 1)
-    current_year = data.get('year', 2023)
+            # Store the usage data in DynamoDB
+            dynamodb.put_item(
+                TableName=table_name,
+                Item={
+                    'CustomerID': {'S': customer_id},
+                    'Timestamp-EventID': {'S': f"{current_year}-{current_month:02}"},
+                    'BytesSent': {'N': str(bytes_sent)}
+                }
+            )
 
-    # Update the usage data for the customer in the corresponding month.
-    monthly_usage[customer_id][f"{current_year}-{current_month:02}"] += bytes_sent
+            logger.info(f"Customer {customer_id}: Total bytes sent = {bytes_sent} bytes")
+            return {
+                "statusCode": 201,
+                "body": json.dumps({"message": "Usage recorded"})
+            }
 
-    # Store the usage data in DynamoDB
-    dynamodb.put_item(
-        TableName=table_name,
-        Item={
-            'CustomerID': {'S': customer_id},
-            'Timestamp-EventID': {'S': f"{current_year}-{current_month:02}"},
-            'BytesSent': {'N': str(bytes_sent)}
+        elif event['httpMethod'] == 'GET':
+            customer_id = event['queryStringParameters']['customer']
+
+            # Use the Query operation to retrieve all records for the specified customer
+            response = dynamodb.query(
+                TableName=table_name,
+                KeyConditionExpression='CustomerID = :customer_id',
+                ExpressionAttributeValues={
+                    ':customer_id': {'S': customer_id}
+                }
+            )
+
+            items = response.get('Items', [])
+
+            # Parse and format the retrieved items
+            formatted_data = {
+                'customer': customer_id,
+                'usage_data': {}
+            }
+
+            for item in items:
+                event_id = item['Timestamp-EventID']['S']
+                bytes_sent = int(item['BytesSent']['N'])
+                formatted_data['usage_data'][event_id] = bytes_sent
+
+            if formatted_data['usage_data']:
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps(formatted_data)
+                }
+            else:
+                return {
+                    "statusCode": 404,
+                    "body": json.dumps({"error": "Data not found for the specified customer"})
+                }
+    except Exception as e:
+        # Handle the exception and log the error
+        logger.error(f"An error occurred: {str(e)}")
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": "Internal Server Error"})
         }
-    )
-
-    print(f"Customer {customer_id}: Total bytes sent = {bytes_sent} bytes")
-    return jsonify({"message": "Usage recorded"}), 201
-
-# Get user month wise details using customer ID
-@app.route('/getUsageByCustomer', methods=['GET'])
-@jwt_required()
-def get_usage_by_customer():
-    customer_id = request.args.get('customer')
-
-    if customer_id in monthly_usage:
-        return jsonify({"customer": customer_id, "usage_data": monthly_usage[customer_id]})
-    else:
-        return jsonify({"error": "Data not found for the specified customer"}), 404
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=4000)

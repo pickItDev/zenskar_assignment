@@ -1,0 +1,13 @@
+
+POST request
+
+curl -X POST http://localhost:4000/usage -H "Content-Type: application/json" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY5ODgyNDg2NywianRpIjoiMGVlNjBhODktY2RkNC00MDkyLWE3NTktNDE2YWZkYzYwYTQ4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6InVzZXIxIiwibmJmIjoxNjk4ODI0ODY3LCJleHAiOjE2OTg4MjU3Njd9.Vkmd5qD8dpeI32jOGsGyA-10RBguXKCPU-ubSTXjH7U" -d '{"customer": "C01", "bytes": 50}'
+
+Generate JWT
+
+curl -X POST http://localhost:4000/login -H "Content-Type: application/json" -d '{"username": "user1", "password": "password1"}'
+
+GET Request
+
+curl -X GET "http://localhost:4000/getUsageByCustomer?customer=C01" -H "Authorization: Bearer  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY5ODgyNDg2NywianRpIjoiMGVlNjBhODktY2RkNC00MDkyLWE3NTktNDE2YWZkYzYwYTQ4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6InVzZXIxIiwibmJmIjoxNjk4ODI0ODY3LCJleHAiOjE2OTg4MjU3Njd9.Vkmd5qD8dpeI32jOGsGyA-10RBguXKCPU-ubSTXjH7U"
+
