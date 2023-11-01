@@ -11,3 +11,9 @@ GET Request
 
 curl -X GET "http://localhost:4000/getUsageByCustomer?customer=C01" -H "Authorization: Bearer  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY5ODgyNDg2NywianRpIjoiMGVlNjBhODktY2RkNC00MDkyLWE3NTktNDE2YWZkYzYwYTQ4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6InVzZXIxIiwibmJmIjoxNjk4ODI0ODY3LCJleHAiOjE2OTg4MjU3Njd9.Vkmd5qD8dpeI32jOGsGyA-10RBguXKCPU-ubSTXjH7U"
 
+
+
+curl -X POST http://localhost:4000/usage -d '{"customer": "C01", "bytes": 50}'
+
+curl -X POST -H "Content-Type: application/json" -d '{"id": "C01","bytes": "34", "time": "1-11-2023"}' https://mqpyh6hoi3.execute-api.ap-south-1.amazonaws.com/Prod/sms_billing
+
