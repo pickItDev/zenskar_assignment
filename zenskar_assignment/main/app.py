@@ -8,16 +8,24 @@ ddb = boto3.resource('dynamodb')
 table = ddb.Table('user_billing')
 
 @app.route('/sms_billing', methods=['GET', 'POST'])
-def put_list_students():
+def put_list_billing():
     if request.method == 'GET':
         bills = table.scan()['Items']
         return json_response(bills)
     else:
-        table.put_item(Item=request.form.to_dict())
+        # table.put_item(Item=request.form.to_dict())
+        data = request.get_json()
+        table.put_item(
+            Item={
+                'id': data['id'],
+                'bytes': data['bytes'],
+                'time': data['time']
+            }
+        )
         return json_response({"message": "billing entry created"})
 
 @app.route('/sms_billing/<id>', methods=['GET'])
-def get_patch_delete_student(id):
+def get_bill_by_id(id):
     key = {'id': id}
     if request.method == 'GET':
         bills = table.get_item(Key=key).get('Item')
