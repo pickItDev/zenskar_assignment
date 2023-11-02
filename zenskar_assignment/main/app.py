@@ -13,16 +13,24 @@ def put_list_billing():
         bills = table.scan()['Items']
         return json_response(bills)
     else:
-        # table.put_item(Item=request.form.to_dict())
+        # Assuming 'data' is the key containing the JSON data
         data = request.get_json()
-        table.put_item(
-            Item={
-                'id': data['id'],
-                'bytes': data['bytes'],
-                'time': data['time']
-            }
-        )
+
+        # Send data to the SQS queue
+        sqs = boto3.client('sqs')
+        queue_url = 'https://sqs.ap-south-1.amazonaws.com/729812678123/sms_queue'  # Replace with your SQS queue URL
+        sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps({'data': data}))
         return json_response({"message": "billing entry created"})
+
+        # table.put_item(Item=request.form.to_dict())
+        # data = request.get_json()
+        # table.put_item(
+        #     Item={
+        #         'id': data['id'],
+        #         'bytes': data['bytes'],
+        #         'time': data['time']
+        #     }
+        # )
 
 @app.route('/sms_billing/<id>', methods=['GET'])
 def get_bill_by_id(id):
